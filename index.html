@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Un premier jeu Phaser 3.0</title>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.50.0/dist/phaser.js"></script>
+    <style type="text/css">
+      body {
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="text/javascript">
+    window.onload = function () {//rajouter pour passer d'un code à scène unique à un code appelant plusieurs scène
+        var config = {
+          type: Phaser.AUTO,
+          width: 800,
+          height: 600,
+          physics: {
+            default: "arcade",
+            arcade: {
+              gravity: { y: 0 },//les déplacements sont faits de manière instantané pour le joueur
+              debug: false
+            }
+          },
+          scene: [menu, jeu, regle, ecranDeFin]
+        };
+        var game = new Phaser.Game(config);
+        game.scene.start("menu");
+    };
+
+/*objets*/   
+
+    var player;
+    var cursors;
+    var voitureObstacle;
+    var route;
+    var cloudsWhite;
+    var cloudsWhiteSmall;
+    var chronoText
+    var monTimer;  
+    var timerScore;
+    var scoreText;
+    var test;
+    var boutonInvincible ;
+    var tempsInvincible;
+    var popup;
+    var bombs;
+    var objetMalusRapide;
+    var objetBonusLent;
+    var buissons;
+    var herbe;
+    var arbre;
+    var giletJaune;
+    var avion;
+    var flaque;
+    var scoreFinal;
+    var toucheDeRetour;
+    var toucheDeLancement;
+    var toucheDeRegle;
+    var titreMenu;
+    var musiqueJeu;
+    var musiqueMenu;
+    var musiqueFin;
+    var musiqueRegle;
+    var musiqueInvincible;
+
+/*boutons*/
+
+    var boutonPlay;
+    var boutonRegle;
+    var boutonRetour;
+        
+/*coefficients*/ 
+
+    var score = 0;
+    var chrono = 0;
+    var multipleScore = 1;
+    var vitesseNuage = 0.5;
+    var vitesseNuageNormal=0.5;
+    var vitesseNuageaugmenté = 0.6667;
+    var vitesseNuagediminué = 0.3333;
+    var vitesseNuagePetit = 0.25;
+    var vitesseNuagePetitNormal = 0.25;
+    var vitesseNuagePetitaugmenté = 0.3333;
+    var vitesseNuagePetitdiminué = 0.1667;
+    var vitesseRoute = 5;
+    var vitesseRouteNormal = 5;
+    var vitesseRouteaugmenté = 6.667;
+    var vitesseRoutediminué = 3.333;
+    var vitesseVoitureObstacle = -600;
+    var vitesseVoitureObstacleNormal = -600;
+    var vitesseVoitureObstacleaugmenté = -900;
+    var vitesseVoitureObstaclediminué = -300;
+    var vitesseObstacle = -600;
+    var vitesseObstacleNormal = -600;
+    var vitesseObstacleaugmenté = -900;
+    var vitesseObstaclediminué = -300;
+    var couleurMotsRegles = 0x5500ff;
+    var debutAleatoire;
+    var MeilleurScore = 0;
+    var pointsGagneLorsqueGiletJauneEcrase = 10;
+
+/*booléens*/ 
+
+    var gameOver = false;
+    var on_arrete_tout = false;
+    var on_recommence_tout = false;
+    var estInvincible = false;
+    var crimeCommis = false;
+    var bonneCoordonnee = false;
+    var policeEnRoute = false;
+    var impactSurGiletJaune = false;
+    var jouerMusique = false;
+
+/********************/
+/********************/
+
+/*menu*/
+
+        class menu extends Phaser.Scene {
+  constructor() {
+    super({ key: "menu" });
+  }
+
+  preload() {
+    this.load.image("menuImage", "assets/menuImage.png");
+    this.load.image("imageBoutonPlay", "assets/boutonStartImage.png");
+    this.load.image("imageBoutonRegle", "assets/boutonRegleImage.png");//on charge les images
+    this.load.image("titreMenu", "assets/titreImage.PNG");
+    this.load.audio("musiqueDeMenu", "assets/rayman-3-music-funkyboard.mp3");
+  }
+
+  create() {
+    musiqueMenu = this.sound.add("musiqueDeMenu");//appel du fichier audio chargé
+    musiqueMenu.play();//joue la musique liée à la variable
+    musiqueMenu.setVolume(0.3);
+    musiqueMenu.setLoop(true);//boucle pour que le joueur n'est pas un silence quand il joue
+
+    this.add.image(0, 0, "menuImage").setOrigin(0).setDepth(0);// on place les éléments de fond
+
+    titreMenu = this.add.sprite(420, 180, "titreMenu").setDepth(1).setScale(1.3);//logo
+
+    boutonPlay = this.add.sprite(400, 380, "imageBoutonPlay").setDepth(1).setScale(2.2);//on ajoute 2 boutons clicables
+    boutonRegle = this.add.sprite(400, 500, "imageBoutonRegle").setDepth(1).setScale(2.2);//grossis à 220%
+   
+    toucheDeRegle = this.input.keyboard.addKey("R");//racourci clavier
+    toucheDeLancement = this.input.keyboard.addKey("S");//plus pratiques que la souris pour faire plusieurs parties
+
+    boutonPlay.setInteractive();//on rend le bouton interratif
+    boutonRegle.setInteractive();
+    
+    boutonPlay.on("pointerover", () => {//Cas où la souris passe sur le bouton play
+      boutonPlay.setTint(0x00ff00); //teinte en vert le bouton
+    });
+    
+    boutonPlay.on("pointerout", () => {//Cas où la souris ne passe plus sur le bouton play
+      boutonPlay.clearTint(); //enlever la teinte 
+    });
+    
+    boutonPlay.on("pointerup", () => {//Cas où la sourris clique sur le bouton play  
+      if (on_recommence_tout) {//ensemble des variables à réinitialiser
+        on_recommence_tout = false;
+        on_arrete_tout = false;
+        vitesseNuage=0.5;
+        vitesseNuagePetit=0.25;
+        vitesseRoute=5;
+        vitesseVoitureObstacle=-600;
+        vitesseObstacle=-600;
+        score=0;
+        gameOver = false;
+        crimeCommis = false;
+        policeEnRoute = false;
+      }
+      musiqueMenu.stop();
+      this.scene.start("jeu");// on lance le jeu
+    });
+
+    boutonRegle.on("pointerover", () => {
+      boutonRegle.setTint(0x00bfff); //teinte en bleu clair le bouton
+    });
+    
+    boutonRegle.on("pointerout", () => {
+      boutonRegle.clearTint();//enlève la teinte pour avoir l'image d'origine
+    });
+
+    boutonRegle.on("pointerup", () => {
+      musiqueMenu.stop();
+      this.scene.start("regle");// on lance obtient les règles
+    });
+  }
+
+  update() {
+    this.retourVers();//lance à chaque cycle de refraîchissement la fonction "retourVers" appartenant à cette scène
+  }
+
+  retourVers () {
+    if (Phaser.Input.Keyboard.JustDown(toucheDeRegle)) {//au moment où la touche "R" est pressée            
+      on_recommence_tout = true;//repère du code pour réinitialiser les variables nécessaires au bon fonctionnement du jeu
+      musiqueMenu.stop();
+      this.scene.start("regle");  
+    }
+    if (Phaser.Input.Keyboard.JustDown(toucheDeLancement)) {//racourci de reinitialisation par touche           
+      if (on_recommence_tout) {//le meilleur score n'est pas réinitialisé donc on peut faire un suivi des scores 
+        on_recommence_tout = false;
+        on_arrete_tout = false;
+        vitesseNuage=0.5;
+        vitesseNuagePetit=0.25;
+        vitesseRoute=5;
+        vitesseVoitureObstacle=-600;
+        vitesseObstacle=-600;
+        score=0;
+        gameOver = false;
+        crimeCommis = false;
+        policeEnRoute = false;
+      }
+      musiqueMenu.stop();
+      this.scene.start("jeu");// on lance le jeu 
+    }
+  }
+  }
+
+/********************/
+/********************/
+
+/*les règles*/
+
+        class regle extends Phaser.Scene {
+  constructor() {
+    super({ key: "regle" });
+  }
+
+  preload() {
+    this.load.image("regleImage", "assets/menuImageFlou.png");
+    this.load.image("reglementImage", "assets/reglementImage.png");
+    this.load.image("imageBoutonRetour", "assets/boutonRetourImage.png");
+    this.load.text("nosRegles", "assets/nosRegles.txt");
+    this.load.audio("musiqueRegle", "assets/rayman-3-hoodlum-havoc-ost-check-it-out-the-fairy-council.mp3");
+  }
+
+  create() {
+    musiqueRegle = this.sound.add("musiqueRegle");
+    musiqueRegle.play();//joue la musique liée à la variable
+    musiqueRegle.setVolume(0.3);
+    musiqueRegle.setLoop(true);
+
+    this.add.image(0, 0, "regleImage").setOrigin(0).setDepth(0);
+    this.add.image(400, 300, "reglementImage").setScale(0.8).setTint(couleurMotsRegles);//cadre autour du texte
+
+    var largeText = this.add.text(0, 0,this.cache.text.get("nosRegles")).setTint(couleurMotsRegles);//affiche le texte du fichier .txt avec une couleur plus voyante que blanc
+    
+    boutonRetour = this.add.sprite(400, 470, "imageBoutonRetour").setDepth(1).setScale(1.9);//retourne au menu
+   
+    toucheDeRetour = this.input.keyboard.addKey("R");//retourne au menu avec "retourVers"
+
+    boutonRetour.setInteractive();
+
+    boutonRetour.on("pointerover", () => {
+      boutonRetour.setTint(0xff0000);//teinte en rouge
+    });
+    
+    boutonRetour.on("pointerout", () => {
+      boutonRetour.clearTint();
+    });
+
+    boutonRetour.on("pointerup", () => {
+      musiqueRegle.stop();
+      this.scene.start("menu");
+    });
+  }
+
+  update() {
+    this.retourVers();
+  }
+
+  retourVers () {
+    if (Phaser.Input.Keyboard.JustDown(toucheDeRetour)) {//au moment où la touche "R" est pressée            
+      on_recommence_tout = true;
+      musiqueRegle.stop();
+      this.scene.start("menu");  
+    }
+  }
+
+  }
+
+/********************/
+/********************/
+
+/*l'écran de GameOver*/
+
+        class ecranDeFin extends Phaser.Scene {
+  constructor() {
+    super({ key: "ecranDeFin" });
+  }
+
+  preload() {
+    this.load.image("ecranDeFinImage", "assets/menuFinImage.png");
+    this.load.image("imageBoutonRetour", "assets/boutonRetourImage.png");
+    this.load.audio("musiqueFin", "assets/dark-souls-you-died-sound-effect.mp3");
+  }
+
+  create() {
+    musiqueFin = this.sound.add("musiqueFin");
+    musiqueFin.play();//joue la musique liée à la variable
+    musiqueFin.setVolume(0.3);
+
+    this.add.image(0, 0, "ecranDeFinImage").setOrigin(0).setDepth(0);
+ 
+    boutonRetour = this.add.sprite(400, 470, "imageBoutonRetour").setDepth(1).setScale(2);
+   
+    boutonRetour.setInteractive();
+
+    if (score > MeilleurScore) {
+      MeilleurScore = score;//prends la valeur la plus haute
+    }
+    scoreFinal =this.add.text(16, 10, "VOUS AVEZ LE DROIT DE GARDER \n        LE SILENCE ! \n   Votre score final: "+ score+"\n   Meilleur score: "+MeilleurScore, {
+    fontSize: "46px",//taille de la police d'écriture
+    fill: "#ff0000" //Couleur de l'écriture
+    });
+    scoreFinal.setScrollFactor(0);//scoreFinal ne se déplacera pas quand la caméra se déplace
+
+    toucheDeRetour = this.input.keyboard.addKey("R");
+
+    boutonRetour.on("pointerover", () => {
+      boutonRetour.setTint(0xff0000);
+    });
+    
+    boutonRetour.on("pointerout", () => {
+      boutonRetour.clearTint();
+    });
+
+    boutonRetour.on("pointerup", () => {
+      on_recommence_tout = true;
+      musiqueFin.stop();
+      this.scene.start("menu");
+    });
+
+  }
+
+  update() {
+    this.retourVers();
+  }
+
+  retourVers () {
+    if (Phaser.Input.Keyboard.JustDown(toucheDeRetour)) {//au moment où la touche "R" est pressée            
+      on_recommence_tout = true;
+      musiqueFin.stop();
+      this.scene.start("menu");  
+    }
+  }
+
+  }
+
+/********************/
+/********************/
+
+/*le jeu*/
+
+        class jeu extends Phaser.Scene {
+  constructor() {
+    super({ key: "jeu" });
+  }
+
+  preload() {
+  this.load.image("sky", "assets/sky.png");
+  this.load.image("road", "assets/road.png");
+  this.load.image("voitureObstacle", "assets/voiture.png");
+  this.load.image("bombe", "assets/bomb.png");
+  this.load.image("clouds-white", "assets/clouds-white.png");
+  this.load.image("clouds-white-small", "assets/clouds-white-small.png");
+  this.load.image("lent", "assets/ralentisseur.png");
+  this.load.image("rapide", "assets/speed.png");
+  this.load.image("avatar", "assets/personnageVoiture.png");
+  this.load.image("buissons", "assets/buissonImage.png");
+  this.load.image("herbe", "assets/herbeImage.png");
+  this.load.spritesheet("arbre", "assets/arbreImage.png", {
+  frameWidth: 250,
+  frameHeight: 300,
+  frame:4//précise le nombre de sous-image qui composent le spritesheet
+  });
+  this.load.spritesheet("giletJaune", "assets/giletJauneImage.png", {
+  frameWidth: 350,
+  frameHeight: 500,
+  });
+  this.load.spritesheet("lesAiglesAttaquent", "assets/lesAiglesAttaquent.png", {
+  frameWidth: 46,
+  frameHeight: 24,
+  frame:3
+  });
+  this.load.image("flaque", "assets/flaqueDeSang.png");
+  this.load.audio("musiqueDeJeu", "assets/Ironside - Quincy Jones (Kill Bill).mp3");
+  //chargement de la musique
+  this.load.audio("musiqueEtoile", "assets/super-mario-bros-star.mp3");
+  }
+
+  create() {
+
+    musiqueJeu = this.sound.add("musiqueDeJeu");//appel du fichier audio chargé
+    musiqueJeu.play();//joue la musique liée à la variable
+    musiqueJeu.setVolume(0.3);
+    musiqueJeu.setLoop(true);//boucle pour que le joueur n'est pas un silence quand il joue
+
+    
+    musiqueInvincible = this.sound.add("musiqueEtoile");
+    
+
+    /*fond*/
+    this.add.image(400, 300, "sky"); //place une image fixe aux coordonnées x=400 et y=300 et de terme clef "sky"
+     
+    /*arrière plan*/
+    cloudsWhite = this.add.tileSprite(640, 75, 1280, 400, "clouds-white");//ces images pourront bouger
+    cloudsWhiteSmall = this.add.tileSprite(
+      640,
+      150,
+      1280,
+      400,
+      "clouds-white-small"
+    );
+    
+    /*forêt du bord supérieur*/
+    arbre = this.physics.add.group({ //en premier pour apparaître "derrière" la route
+      key: "arbre",
+      repeat: 10,//donc 11 objets au total
+      frame: Phaser.Utils.Array.NumberArray(0, 3),
+      randomFrame: true,//permet de changer automatiquement et aléatoirement de frame, permet d'avoir une forêt d'arbres différents
+      setXY: { x: -20, y: 170, stepX: Phaser.Math.Between(20, 60) },//coordonnées du premier et intervalle de répétition en 2D
+      setScale: { x: 0.25, y: 0.25 }//taille des objets   
+    });
+
+    arbre.children.iterate(function (arbreEnfant) { //1 "arbre" mère et 2 "arbreEnfant" fils
+      arbreEnfant.setVelocityX(-vitesseRoute*40);// initialisation de la vitesse
+    });
+       
+    /*support de déplacement*/
+    route = this.add.tileSprite(400, 300, 800, 600, "road");
+
+    /*texture de remplissage*/
+    herbe = this.add.tileSprite(200, 580, 800, 20, "herbe").setScale(1.8);
+
+    /*bonus point*/
+    giletJaune = this.physics.add.sprite(700, 375, "giletJaune").setScale(0.2);
+    
+    giletJaune.anims.create({//animation "accident"
+      key: "accident",
+      frames: [{ key: "giletJaune", frame: 1 }],
+      frameRate: 20
+    });
+    giletJaune.anims.create({
+      key: "respawn",
+      frames: [{ key: "giletJaune", frame: 0 }],
+      frameRate: 20
+    });
+    giletJaune.setVelocityX(vitesseObstacle);//vitesse de l'objet
+
+    /*joueur*/
+    player = this.physics.add.sprite(100, 375, "avatar").setScale(0.2);// on reduit par 5 la taille de l'image originelle
+          
+    /*touche de déplacement*/
+    cursors = this.input.keyboard.createCursorKeys();// on ajoute les flèches
+
+    /*obstacle voiture*/
+    voitureObstacle = this.physics.add.group({
+      key: "voitureObstacle",
+      repeat: 2,//donc 3 objets au total
+      setXY: { x: 1000, y: 250, stepY: 125, stepX: 300 },//coordonnées du premier et intervalle de répétition en 2D
+      setScale: { x: 0.2, y: 0.2 }//taille des objets  
+    });
+
+    //loi de collision entre joueur et voiture par la règle de "hitVoiture_obstacles"
+    this.physics.add.collider(player, voitureObstacle, hitVoiture_obstacles, null, this);
+          
+    voitureObstacle.children.iterate(function (voitureEnfant) { //1 "voitureObstacle" mère et 2 "voitureEnfant" filles
+      voitureEnfant.setVelocityX(vitesseVoitureObstacle);// initialisation de la vitesse des voitures obstacles
+    });
+         
+    /*obstacle bombe*/
+    bombs = this.physics.add.group({
+      key: "bombe",
+      setXY: { x: 1200, y: 250 },
+      setScale: { x: 2, y: 2 }
+    });
+
+    //loi de collision entre joueur et bombes par la règle de "hitBomb"
+    this.physics.add.collider(player, bombs, hitBomb, null, this);
+
+    bombs.children.iterate(function (bombEnfant) { //les copies (ou enfants) de l'objets seront appelées "bombEnfant"
+      bombEnfant.setVelocityX(vitesseVoitureObstacle); //elles prendrons la valeur "vitesseObstacle" pour leur déplacement horizontal
+    });
+
+    /*malus*/
+    objetMalusRapide = this.physics.add.group({//création du malus qui augmente la vitesse donc le risque de perdre
+      key: "rapide",//nom de l'image à utiliser pour représenter l'objet à l'écran
+      setXY: { x: 1500, y: 250 },
+      setScale: { x: 0.05, y: 0.05 }
+    });
+
+    //loi de collision entre joueur et malus par la règle de "hitMalusRapide"
+    this.physics.add.overlap(player, objetMalusRapide, hitMalusRapide, null, this);//cette fois-ci l'objet disparaîtra avec "overlap"
+          
+    objetMalusRapide.children.iterate(function (rapideEnfant) {
+      rapideEnfant.setVelocityX(vitesseObstacle);
+    });
+
+    /*bonus*/
+    objetBonusLent = this.physics.add.group({
+      key: "lent",//ici le bonus permet de ralentir les obstacles
+      setXY: { x: 2000, y: 375 },
+      setScale: { x: 0.1, y: 0.1 }
+    });
+
+    this.physics.add.overlap(player, objetBonusLent, hitBonusLent, null, this);
+
+    objetBonusLent.children.iterate(function (lentEnfant) {
+      lentEnfant.setVelocityX(vitesseObstacle);
+    });
+
+    /*timers*/
+    monTimer = this.time.addEvent({ // Création d'un événement de type timer
+      delay: 1000, // une fois appelé, il durera 1 seconde
+      callback: compteUneSeconde, // puis, il appelera la fonction "compteUneSeconde"
+      callbackScope: this,
+      loop: true // Peut etre relancé. En absence de "paused" il se relance tout seul toutes les secondes
+    });
+
+    tempsInvincible = this.time.addEvent({ // Autre timer
+      delay: 2000, // celui-ci dure cette fois 2 seconde
+      callback: retourneNormal, // appelle la fonction "retourneNormal"
+      callbackScope: this,          
+      loop: true, // peut se relancer
+      paused: true // il a la possibilité d'être paused. Quand paused devient false, le chrono se lance
+    });
+
+    /*Affichage des performances du joueur*/
+    chronoText = this.add.text(16, 100, "", { //ne pas afficher à l'écran
+      fontSize: "24px",
+      fill: "#FFFFFF" //Couleur de l'écriture
+    });
+    chronoText.setScrollFactor(0);  
+
+    timerScore = this.time.addEvent({ // Encore un timer
+      delay: 500*(1.0/multipleScore), // celui ci va augmenter selon la vitesse du joueur
+      callback: augmenterScore, // au debut, il appelera augmenterScore toutes les demis-secondes
+      callbackScope: this,
+      loop: true // encore une fois, il fonctionne en boucle "à l'infinie"
+    });
+          
+    /*Affichage des performances du joueur*/
+    scoreText = this.add.text(16, 10, "Score: 0", {//fluidifie l'affichage, une sorte d'initialisation graphique du compteur
+      fontSize: "24px",
+      fill: "#000000" //Couleur de l'écriture
+    });
+    scoreText.setScrollFactor(0);//voir Marc -> sûrement fixé sur l'écran soit que ça ne défile pas avec la caméra
+
+    /*-10 d'utilisation de touche invincible*/
+    popup = this.add.text(150, 10, "-10!!", { //juste une indication visuelle 
+      fontSize: "40px",
+      fill: "#FF0000" //Couleur de l'écriture
+    });
+    popup.visible =false;//désafiche le "-10!!"
+    
+    /*touche d'invincibilité*/
+    boutonInvincible = this.input.keyboard.addKey("space");//on definit notre touche d'invincibilité
+
+    /*bord de route inférieur*/
+    buissons = this.physics.add.group({
+      key: "buissons",
+      repeat: 50,
+      setXY: { x: -20, y: 570, stepX: Phaser.Math.Between(20, 60) },//coordonnées du premier et intervalle de répétition en 2D
+      setScale: { x: 0.1, y: 0.1 }//taille des objets 
+    });
+
+    buissons.children.iterate(function (buissonsEnfant) {
+      buissonsEnfant.setVelocityX(-vitesseRoute*80);
+    });
+
+    /*élément simulant une poursuite*/
+    avion = this.physics.add.sprite(-1000, 50, "lesAiglesAttaquent").setScale(1.5);//permet d'égayer le ciel
+    avion.setVelocityX(vitesseObstacle*vitesseObstacle*0.001);//vittesse plus importante pour simuler une poursuite
+
+    avion.anims.create({
+      key: "volDeReconnaissance",
+      frames: this.anims.generateFrameNumbers("lesAiglesAttaquent", {
+        start: 0,//frame de début
+        end: 2//frame de fin
+      }),
+      frameRate: 10,
+      repeat: -1//répétition infinie
+    });
+          
+    flaque = this.physics.add.image(0, 0, "flaque").setScale(0.08);//place l'objet, rend plus réaliste et impressionnant le crime
+    flaque.visible = false;//elle existe mais visible qu'avec le dubugage = true
+
+  }
+        
+  update() {
+    
+    if (!jouerMusique && estInvincible) {
+      musiqueInvincible.play();
+      musiqueInvincible.setVolume(0.3);
+      jouerMusique = true;
+    }
+    if (!estInvincible) {
+      musiqueInvincible.stop();
+    }
+    
+    if (!impactSurGiletJaune) {//si la variable est fausse
+    debutAleatoire = Phaser.Math.Between(0,1);//permet à chaque update de changer ou pas l'animation
+    impactSurGiletJaune = true;//permet de ne pas repasser tout de suite dans la boucle
+    }
+    if (checkOverlap(player, giletJaune)) {//si les 2 objet sont proches
+      giletJaune.rotation += 1;//permet de faire une rotation à vitesse continue, commune aux 2 animations
+      if (debutAleatoire == 0) {//choix de l'animation
+        flaque.x = 100;//"spawn" sur un placement possible de la voiture
+        if (!bonneCoordonnee) {//permet de faire qu'une seule et unique copie de la coordonée y du gilet jaune
+          flaque.y = giletJaune.y;//si le gilet jaune se fait écraser, la flaque sera à sa position donc celle aussi de la voiture
+          bonneCoordonnee = true;//permet de ne pas avoir de mise à jour lors des millièmes de secondes où le gilet jaune est sous la voiture
+        }
+        flaque.visible = true;//la flaque est visible
+        flaque.setVelocityX(vitesseVoitureObstacle);//elle se mouvoit
+        giletJaune.setVelocityY(vitesseVoitureObstacle);//le gilet jaune se déplace vers le haut dans cette animation
+      }
+      else {
+      giletJaune.anims.play("accident");//2eme animation
+      }
+      if (!crimeCommis && !estInvincible) {//on gagne des points que si l'on prend des riques
+        score += pointsGagneLorsqueGiletJauneEcrase;//crimeCommis permet d'empecher le joueur de bouger
+      }
+      crimeCommis = true;//permet qu'un seul +100 au score
+      policeEnRoute = true;//le personnage peut se déplacer une fois que le gilet jaune de l'histoire est écrasé
+    } 
+
+    if (giletJaune.x < -20) {//hors du champs de vision du joueur
+      bonneCoordonnee = false;//permet de se replacer sur la voie où le gilet jaune est écrasé
+      impactSurGiletJaune = false;//permet de faire une potentielle nouvelle animation à la futute update
+      giletJaune.anims.play("respawn");//remet le spite de départ
+      giletJaune.rotation = 0;//remet à l'endroit
+    }
+    /*invincibilité*/
+    if (estInvincible == true ) {//si la touche d'invincibilité est enfoncée
+      var a = Phaser.Math.Between(0, 16000000);//a peut prendre beaucoup de valeurs pour les couleur de "l'étoile super Mario"
+      player.setTint(a);//effetvisuel
+    }
+
+    /*correction de bug*/
+    if (on_arrete_tout == false){//si le joueur est toujours vivant
+    avion.anims.play("volDeReconnaissance", true);//l'avion change d'animation
+    this.invincible();//le joueur peut utiliser l'invincibilité quand même
+    }
+
+    /*respawn voitures*/
+    voitureObstacle.children.iterate(function (voitureEnfant) {//si les ennemis sortent du cadre ils seront placé très loin pour donner un effet d'apparition aléatoire
+      if (voitureEnfant.x < -20) voitureEnfant.x = Phaser.Math.Between(820, 2000);
+    });
+
+    /*respawn bomb*/
+    bombs.children.iterate(function (voitureEnfant) {
+      if (voitureEnfant.x < -20) {
+        voitureEnfant.x = Phaser.Math.Between(820, 2000);
+        test = Phaser.Math.Between(1, 3);//permet un placement aléatoire sur les voies
+        if (test == 3) {
+          voitureEnfant.y = 250;
+        }
+        if (test == 1) {
+          voitureEnfant.y = 375;
+        }
+        if (test == 2) {
+          voitureEnfant.y = 500;
+        }
+      }
+    });
+
+    objetMalusRapide.children.iterate(function (voitureEnfant) {
+      if (voitureEnfant.x < -20) {
+        voitureEnfant.x = Phaser.Math.Between(2000, 8000);
+        test = Phaser.Math.Between(1, 3);
+        if (test == 3) {
+          voitureEnfant.y = 250;
+        }
+        if (test == 1) {
+          voitureEnfant.y = 375;
+        }
+        if (test == 2) {
+          voitureEnfant.y = 500;
+        }
+      }
+    });
+
+    objetBonusLent.children.iterate(function (voitureEnfant) {
+      if (voitureEnfant.x < -20) {
+        voitureEnfant.x = Phaser.Math.Between(2000, 8000);
+        test = Phaser.Math.Between(1, 3);
+        if (test == 3) {
+          voitureEnfant.y = 250;
+        }
+        if (test == 1) {
+          voitureEnfant.y = 375;
+        }
+        if (test == 2) {
+          voitureEnfant.y = 500;
+        }
+      }
+    });
+
+    /*déplacement des tilesprites*/
+    cloudsWhite.tilePositionX += vitesseNuage;//permet aux "tilesprite" de se déplacer pour avoir l'effet de paralax
+    cloudsWhiteSmall.tilePositionX += vitesseNuagePetit;
+    route.tilePositionX += vitesseRoute;
+    herbe.tilePositionX += vitesseRoute;
+
+    buissons.children.iterate(function (buissonsEnfant) {
+      if (buissonsEnfant.x < -20) buissonsEnfant.x = Phaser.Math.Between(820, 2000);
+    });
+
+    arbre.children.iterate(function (arbreEnfant) {
+      if (arbreEnfant.x < -20) arbreEnfant.x = Phaser.Math.Between(820, 2000);
+    });
+
+    if (avion.x > 2000) avion.x = Phaser.Math.Between(-820, -200);//l'avio va dans le sens opposé aux obstacle et va très vite, il lui faut donc parcourir plus de distance pour apparaître au joueur de temps en temps
+
+    if (giletJaune.x < -1000) {//si le gilet jaune a disparu du cadre depuis longtemps
+      if (debutAleatoire == 0) {//l'animation avec la flaque
+        flaque.visible = false;//rend la falque invisible, "fin" de l'animation à flaque
+      }
+      crimeCommis = false;//permet le +100 au score au prochain impact
+      //giletJaune.x = Phaser.Math.Between(8000, 10000);//le bonus sera moins fréquent : il faut le mériter
+      giletJaune.x = Phaser.Math.Between(1500, 3000);//spawn gilet jaune, zone de test si valeur très proches de 800 car la fréquence d'apparition en sera plus élevée
+      giletJaune.setVelocityY(0);
+        test = Phaser.Math.Between(1, 3);
+        if (test == 3) {
+          giletJaune.y = 250;
+        }
+        if (test == 1) {
+          giletJaune.y = 375;
+        }
+        if (test == 2) {
+          giletJaune.y = 500;
+        }
+    }
+
+    if (!on_arrete_tout && policeEnRoute){ //la condition doit être vrai donc "on_arrete_tout" doit être égal à false, "policeEnRoute" signifie que le joueur à suivi le scénario
+      if (player.y > 250 && Phaser.Input.Keyboard.JustDown(cursors.up)) {
+        player.y = player.y - 125;
+      } else if ( player.y < 500 && Phaser.Input.Keyboard.JustDown(cursors.down)) {
+        player.y = player.y + 125;
+      } else { }
+    }
+
+    if (gameOver) {//le joueur à perdu en étant touché sans invincibilité
+      vitesseNuage=0;
+      vitesseNuagePetit=0;
+      vitesseRoute=0;
+      vitesseVoitureObstacle=0;
+      vitesseObstacle=0;
+      on_arrete_tout = true;
+      musiqueJeu.stop();//arrete la musique du jeu car celui-ci est fini
+      avion.anims.play("volDeReconnaissance", false);//on arrete l'animation de l'avion
+      this.scene.start("ecranDeFin");
+    }
+  }
+
+  invincible () {
+    if (Phaser.Input.Keyboard.JustDown(boutonInvincible)) {//au moment où la touche "R" est pressée            
+      this.popup ();//affiche la perte de points car le joeur utilise une immunité
+      estInvincible = true;
+
+      player.body.setEnable(false);//la loi de collision est toujours active mais le personnage voit son site d'interaction désactivé
+      
+      tempsInvincible.paused = false; // le chrono Tempsinvincible se lance                          
+      
+      if (score>=10) {// lorsque l'on appuie sur r pour etre invincible on perd 10 points
+        score=score-10;
+      }  
+      else {
+        score=0;//évite les nombres négatifs
+      } 
+    }
+  }
+
+  popup () {
+    popup.visible = true;//action d'affichage de la pénalité
+  }
+  }
+
+  function resetTimer () {
+    timerScore.reset({ delay: 500*(1.0/multipleScore),
+    callback: augmenterScore,
+    callbackScope: this,
+    loop: true});  
+  }
+
+  function retourneNormal() {
+    estInvincible = false;
+    jouerMusique=false;
+    player.body.setEnable(true); // les collisions avec le joueur sont réactivé
+    player.clearTint();//remet la couleur d'origine
+    tempsInvincible.paused=true; // on désactive le chrono qui compte combien de temps on est invincible, ainsi lorsque l'on rappui sur R on est bien invincible 2 secondes
+    popup.visible = false;
+  }
+
+  function compteUneSeconde () {
+    if (on_arrete_tout == true) {// on arrete le chrono quand on perd
+      chrono= chrono;
+    }
+    else {
+      chrono= chrono+1; // on incremente le chronometre d'une unite
+    } // c'est un chronometre dependant de seconde quoi 
+  }
+
+  function augmenterScore () {
+    if (on_arrete_tout == true) {
+      chrono= chrono;
+    }
+    else {
+      score= score+1; // on incremente le chronometre d'une unite
+      scoreText.setText("Score: "+ score); // mise à jour de l'affichage
+    } // c'est un chronometre dependant de seconde quoi 
+  }
+
+  /*Règle contact joueur-bombe*/
+  function hitBomb(player, bombs) {
+    this.physics.pause();//les déplacements des entités sont arrêtés
+    player.setTint(0x00ff00);//indicateur visuel par changement de couleur
+    gameOver = true;//permet de sortir de la boucle de jeu soit la fin du jeu
+  }
+
+  /*Règle contact joueur-voiture*/
+  function hitVoiture_obstacles(player, voitureObstacle) {
+    this.physics.pause();
+    player.setTint(0xff0000);
+    gameOver = true;
+  }
+
+  /*effet des malus*/
+  function vitesseMalusRapide() {
+    vitesseNuage = vitesseNuageaugmenté;//donne une illusion d'accélaration : la paralax 
+    vitesseNuagePetit = vitesseNuagePetitaugmenté;//de même
+    vitesseObstacle = vitesseObstacleaugmenté;
+    vitesseRoute = vitesseRouteaugmenté;
+    vitesseVoitureObstacle = vitesseVoitureObstacleaugmenté;
+    multipleScore = 2;
+    resetTimer ();
+    voitureObstacle.children.iterate(function (voitureEnfant) {
+      voitureEnfant.setVelocityX(vitesseVoitureObstacle);
+    });
+  }
+
+  function vitesseNormal() {
+    vitesseNuage = vitesseNuageNormal;
+    vitesseNuagePetit = vitesseNuageNormal;
+    vitesseObstacle = vitesseObstacleNormal;
+    vitesseRoute = vitesseRouteNormal;
+    vitesseVoitureObstacle = vitesseVoitureObstacleNormal;
+    multipleScore = 1;
+    resetTimer ();
+    voitureObstacle.children.iterate(function (voitureEnfant) {
+    voitureEnfant.setVelocityX(vitesseVoitureObstacle);
+      player.clearTint();// on reprend la couleur originale
+    });
+  }
+
+  function hitMalusRapide(player, rapide) {
+    player.setTint(0xff8000);
+    vitesseMalusRapide();
+    TimerTempsrapide = this.time.addEvent({ // ajouté. Création d'n timer
+      delay: 5000,
+      callback: vitesseNormal,
+      callbackScope: this,
+      loop: false
+    });
+    TimerTempsrapide.paused=false;
+          
+    rapide.x = Phaser.Math.Between(4000, 5000);
+    test = Phaser.Math.Between(1, 3);
+    if (test == 3) {
+      rapide.y = 250;
+    }
+    if (test == 1) {
+      rapide.y = 375;
+    }
+    if (test == 2) {
+      rapide.y = 500;
+    }
+  }
+
+  function vitesseBonusLent() {
+    vitesseNuage = vitesseNuagediminué;
+    vitesseNuagePetit = vitesseNuagePetitdiminué;
+    vitesseObstacle = vitesseObstaclediminué;
+    vitesseRoute = vitesseRoutediminué;
+    vitesseVoitureObstacle = vitesseVoitureObstaclediminué;
+    multipleScore = 0.5;
+    resetTimer ();
+    voitureObstacle.children.iterate(function (voitureEnfant) {
+      voitureEnfant.setVelocityX(vitesseVoitureObstacle);
+    });
+  }
+
+  function hitBonusLent(player, lent) {
+    player.setTint(0x0000ff);
+    vitesseBonusLent ();
+    resetTimer ();
+    TimerTempslent = this.time.addEvent({ // ajouté. Création d'n timer
+      delay: 5000,
+      callback: vitesseNormal,
+      callbackScope: this,
+      loop: false
+    });
+    TimerTempslent.paused=false;
+    lent.x = Phaser.Math.Between(4000, 5000);
+    test = Phaser.Math.Between(1, 3);
+    if (test == 3) {
+      lent.y = 250;
+    }
+    if (test == 1) {
+      lent.y = 375;
+    }
+    if (test == 2) {
+      lent.y = 500;
+    }
+  }
+  function checkOverlap(spriteA, spriteB) {//prends en paramètre les 2 entités
+    var boundsA = spriteA.getBounds();//revoir
+    var boundsB = spriteB.getBounds();
+    var result = Phaser.Geom.Rectangle.Intersection(boundsA, boundsB);
+    return result.width != 0 || result.height != 0;
+  }
+      
+        
+
+      </script>
+    </body>
+  </html>
+</html>
